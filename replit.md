@@ -2,14 +2,15 @@
 
 ## Overview
 
-TaskFlow is a production-ready todo application built with a modern full-stack architecture. The application provides user authentication via Replit Auth, secure task management with user isolation, and a clean, responsive UI inspired by Linear and Todoist.
+TaskFlow is a production-ready todo application built with a modern full-stack architecture. The application provides user authentication via Supabase Auth, secure task management with user isolation using Supabase Row Level Security, and a clean, responsive UI inspired by Linear and Todoist.
 
 **Core Features:**
-- User authentication (login, signup, logout via Replit Auth)
+- User authentication (login, signup, logout via Supabase Auth)
 - CRUD operations for todos (create, read, update, delete)
-- User-specific data isolation (users can only access their own todos)
+- User-specific data isolation (users can only access their own todos via RLS)
 - Dark/light theme support
 - Responsive design with mobile support
+- Visible sign out button in header
 
 ## User Preferences
 
@@ -25,37 +26,52 @@ Preferred communication style: Simple, everyday language.
 - **Styling:** Tailwind CSS with CSS variables for theming
 - **Component Library:** shadcn/ui (Radix UI primitives with custom styling)
 - **Path Aliases:** `@/` maps to `client/src/`, `@shared/` maps to `shared/`
+- **Auth & Data:** Supabase JavaScript client for auth and database operations
 
 ### Backend Architecture
 - **Framework:** Express.js with TypeScript
 - **HTTP Server:** Node.js HTTP server
-- **API Pattern:** RESTful endpoints under `/api/` prefix
-- **Authentication:** Replit Auth with OpenID Connect, session-based with PostgreSQL session store
-- **Middleware:** JSON body parsing, session management, authentication guards
+- **API Pattern:** Minimal - only serves Supabase config endpoint
+- **Note:** Most logic runs client-side with Supabase
 
 ### Data Storage
-- **Database:** PostgreSQL via Drizzle ORM
-- **Schema Location:** `shared/schema.ts` (shared between frontend and backend)
-- **Session Storage:** PostgreSQL table (`sessions`) for session persistence
-- **Migrations:** Drizzle Kit with `db:push` command
+- **Database:** Supabase (PostgreSQL)
+- **Authentication:** Supabase Auth (email/password)
+- **Data Access:** Direct from frontend using Supabase client with RLS
 
-### Database Schema
-- **users:** id, email, firstName, lastName, profileImageUrl, timestamps
-- **sessions:** sid, sess (JSONB), expire (for Replit Auth session storage)
-- **todos:** id (UUID), userId (foreign key), title, isCompleted, createdAt
+### Supabase Database Schema
+**todos table:**
+```sql
+CREATE TABLE todos (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  title TEXT NOT NULL,
+  is_completed BOOLEAN DEFAULT false NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now() NOT NULL
+);
 
-### Authentication Flow
-- Replit Auth integration using OpenID Connect
-- Session stored in PostgreSQL with `connect-pg-simple`
-- Protected routes require `isAuthenticated` middleware
-- User data extracted from JWT claims (`req.user.claims.sub`)
+-- Enable Row Level Security
+ALTER TABLE todos ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Users can only see their own todos
+CREATE POLICY "Users can view own todos" ON todos
+  FOR SELECT USING (auth.uid() = user_id);
+
+-- Policy: Users can insert their own todos
+CREATE POLICY "Users can insert own todos" ON todos
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Policy: Users can update their own todos
+CREATE POLICY "Users can update own todos" ON todos
+  FOR UPDATE USING (auth.uid() = user_id);
+
+-- Policy: Users can delete their own todos
+CREATE POLICY "Users can delete own todos" ON todos
+  FOR DELETE USING (auth.uid() = user_id);
+```
 
 ### API Endpoints
-- `GET /api/auth/user` - Get current authenticated user
-- `GET /api/todos` - Get all todos for authenticated user
-- `POST /api/todos` - Create new todo
-- `PUT /api/todos/:id` - Update todo
-- `DELETE /api/todos/:id` - Delete todo
+- `GET /api/config` - Get Supabase configuration (URL and anon key)
 
 ### Build System
 - Development: `tsx` for TypeScript execution with Vite dev server
@@ -64,17 +80,12 @@ Preferred communication style: Simple, everyday language.
 
 ## External Dependencies
 
-### Database
-- **PostgreSQL:** Primary database, connection via `DATABASE_URL` environment variable
-- **Drizzle ORM:** Type-safe database queries and schema management
-
-### Authentication
-- **Replit Auth:** OpenID Connect provider for user authentication
-- **Required Environment Variables:**
-  - `DATABASE_URL` - PostgreSQL connection string
-  - `SESSION_SECRET` - Secret for session encryption
-  - `REPL_ID` - Replit environment identifier
-  - `ISSUER_URL` - OpenID Connect issuer (defaults to Replit)
+### Supabase
+- **Supabase URL:** Project URL from Supabase dashboard
+- **Supabase Anon Key:** Public API key from Supabase dashboard
+- **Required Secrets:**
+  - `SUPABASE_URL` - Supabase project URL
+  - `SUPABASE_ANON_KEY` - Supabase anonymous/public key
 
 ### UI Components
 - **Radix UI:** Headless UI primitives (dialogs, dropdowns, checkboxes, etc.)
@@ -82,7 +93,9 @@ Preferred communication style: Simple, everyday language.
 - **class-variance-authority:** Component variant management
 - **tailwind-merge:** Tailwind class merging utility
 
-### Session Management
-- **express-session:** Session middleware
-- **connect-pg-simple:** PostgreSQL session store
-- **memoizee:** Caching for OIDC configuration
+## Setup Instructions
+
+1. Create a Supabase project at https://supabase.com
+2. Add SUPABASE_URL and SUPABASE_ANON_KEY to Replit secrets
+3. Run the SQL above in Supabase SQL Editor to create the todos table with RLS
+4. Enable email auth in Supabase (Auth > Providers > Email)

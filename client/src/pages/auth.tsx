@@ -13,7 +13,7 @@ type AuthMode = 'signin' | 'signup';
 
 export default function AuthPage() {
   const [, setLocation] = useLocation();
-  const { signIn, signUp } = useSupabaseAuth();
+  const { signIn, signUp, isAuthenticated } = useSupabaseAuth();
   const { toast } = useToast();
   
   const [mode, setMode] = useState<AuthMode>('signin');
@@ -23,6 +23,11 @@ export default function AuthPage() {
   const [lastName, setLastName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  if (isAuthenticated) {
+    setLocation('/');
+    return null;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +45,7 @@ export default function AuthPage() {
         } else {
           toast({
             title: 'Account created!',
-            description: 'Please check your email to confirm your account.',
+            description: 'Please check your email to confirm your account, or sign in if email confirmation is disabled.',
           });
           setMode('signin');
         }

@@ -106,7 +106,7 @@ export function Header() {
                       className="text-sm font-medium leading-none"
                       data-testid="text-user-name"
                     >
-                      {firstName} {lastName}
+                      {firstName || lastName ? `${firstName} ${lastName}`.trim() : 'User'}
                     </p>
                     <p
                       className="text-xs text-muted-foreground leading-none"
