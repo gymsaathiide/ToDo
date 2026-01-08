@@ -1,63 +1,87 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Header } from "@/components/header";
 import { TodoInput } from "@/components/todo-input";
 import { TodoList } from "@/components/todo-list";
-import { useAuth } from "@/hooks/use-auth";
+import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest } from "@/lib/queryClient";
-import { isUnauthorizedError } from "@/lib/auth-utils";
-import type { Todo } from "@shared/schema";
+import { getSupabase } from "@/lib/supabase";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+interface Todo {
+  id: string;
+  user_id: string;
+  title: string;
+  is_completed: boolean;
+  created_at: string;
+}
+
+interface TodoDisplay {
+  id: string;
+  userId: string;
+  title: string;
+  isCompleted: boolean;
+  createdAt: string;
+}
+
+function mapTodo(todo: Todo): TodoDisplay {
+  return {
+    id: todo.id,
+    userId: todo.user_id,
+    title: todo.title,
+    isCompleted: todo.is_completed,
+    createdAt: todo.created_at,
+  };
+}
 
 export default function Dashboard() {
-  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { user, isLoading: authLoading, isAuthenticated } = useSupabaseAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
   const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set());
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const [supabase, setSupabase] = useState<SupabaseClient | null>(null);
 
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      toast({
-        title: "Session expired",
-        description: "Please log in again.",
-        variant: "destructive",
-      });
-      setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 500);
-    }
-  }, [authLoading, isAuthenticated, toast]);
+    getSupabase().then(setSupabase);
+  }, []);
 
   const {
     data: todos = [],
     isLoading: todosLoading,
-  } = useQuery<Todo[]>({
-    queryKey: ["/api/todos"],
-    enabled: isAuthenticated,
+  } = useQuery<TodoDisplay[]>({
+    queryKey: ["todos"],
+    queryFn: async () => {
+      const client = await getSupabase();
+      const { data, error } = await client
+        .from("todos")
+        .select("*")
+        .order("created_at", { ascending: false });
+      
+      if (error) throw error;
+      return (data || []).map(mapTodo);
+    },
+    enabled: isAuthenticated && !!supabase,
   });
 
   const addMutation = useMutation({
     mutationFn: async (title: string) => {
-      return apiRequest("POST", "/api/todos", { title });
+      const client = await getSupabase();
+      const { error } = await client.from("todos").insert({
+        title,
+        user_id: user?.id,
+      });
+      if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/todos"] });
+      queryClient.invalidateQueries({ queryKey: ["todos"] });
     },
     onError: (error: Error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Session expired",
-          description: "Please log in again.",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
       toast({
         title: "Error",
-        description: "Failed to add task. Please try again.",
+        description: error.message || "Failed to add task. Please try again.",
         variant: "destructive",
       });
     },
@@ -66,26 +90,20 @@ export default function Dashboard() {
   const toggleMutation = useMutation({
     mutationFn: async ({ id, isCompleted }: { id: string; isCompleted: boolean }) => {
       setUpdatingIds((prev) => new Set(prev).add(id));
-      return apiRequest("PUT", `/api/todos/${id}`, { isCompleted });
+      const client = await getSupabase();
+      const { error } = await client
+        .from("todos")
+        .update({ is_completed: isCompleted })
+        .eq("id", id);
+      if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/todos"] });
+      queryClient.invalidateQueries({ queryKey: ["todos"] });
     },
     onError: (error: Error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Session expired",
-          description: "Please log in again.",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
       toast({
         title: "Error",
-        description: "Failed to update task. Please try again.",
+        description: error.message || "Failed to update task. Please try again.",
         variant: "destructive",
       });
     },
@@ -101,26 +119,20 @@ export default function Dashboard() {
   const updateMutation = useMutation({
     mutationFn: async ({ id, title }: { id: string; title: string }) => {
       setUpdatingIds((prev) => new Set(prev).add(id));
-      return apiRequest("PUT", `/api/todos/${id}`, { title });
+      const client = await getSupabase();
+      const { error } = await client
+        .from("todos")
+        .update({ title })
+        .eq("id", id);
+      if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/todos"] });
+      queryClient.invalidateQueries({ queryKey: ["todos"] });
     },
     onError: (error: Error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Session expired",
-          description: "Please log in again.",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
       toast({
         title: "Error",
-        description: "Failed to update task. Please try again.",
+        description: error.message || "Failed to update task. Please try again.",
         variant: "destructive",
       });
     },
@@ -136,26 +148,20 @@ export default function Dashboard() {
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       setDeletingIds((prev) => new Set(prev).add(id));
-      return apiRequest("DELETE", `/api/todos/${id}`);
+      const client = await getSupabase();
+      const { error } = await client
+        .from("todos")
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/todos"] });
+      queryClient.invalidateQueries({ queryKey: ["todos"] });
     },
     onError: (error: Error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Session expired",
-          description: "Please log in again.",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
       toast({
         title: "Error",
-        description: "Failed to delete task. Please try again.",
+        description: error.message || "Failed to delete task. Please try again.",
         variant: "destructive",
       });
     },
@@ -195,8 +201,11 @@ export default function Dashboard() {
   }
 
   if (!isAuthenticated) {
+    setLocation('/auth');
     return null;
   }
+
+  const firstName = user?.user_metadata?.first_name;
 
   return (
     <div className="min-h-screen bg-background">
@@ -205,7 +214,7 @@ export default function Dashboard() {
       <main className="mx-auto max-w-3xl px-4 py-8 md:px-8">
         <div className="mb-8">
           <h1 className="mb-2 text-2xl font-bold tracking-tight md:text-3xl" data-testid="text-welcome">
-            Welcome back{user?.firstName ? `, ${user.firstName}` : ""}!
+            Welcome back{firstName ? `, ${firstName}` : ""}!
           </h1>
           <p className="text-muted-foreground" data-testid="text-task-summary">
             {activeTodoCount === 0

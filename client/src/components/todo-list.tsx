@@ -10,7 +10,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
-import type { Todo } from "@shared/schema";
+
+interface Todo {
+  id: string;
+  userId: string;
+  title: string;
+  isCompleted: boolean;
+  createdAt: string;
+}
 
 interface TodoListProps {
   todos: Todo[];

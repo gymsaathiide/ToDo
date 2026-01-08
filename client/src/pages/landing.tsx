@@ -1,4 +1,5 @@
 import { CheckSquare, ArrowRight, CheckCircle, Shield, Zap } from "lucide-react";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -33,7 +34,7 @@ export default function Landing() {
           <div className="flex items-center gap-2">
             <ThemeToggle />
             <Button asChild data-testid="button-login-header">
-              <a href="/api/login">Sign In</a>
+              <Link href="/auth">Sign In</Link>
             </Button>
           </div>
         </div>
@@ -60,10 +61,10 @@ export default function Landing() {
             
             <div className="flex flex-col gap-4 sm:flex-row">
               <Button size="lg" asChild className="gap-2" data-testid="button-get-started">
-                <a href="/api/login">
+                <Link href="/auth">
                   Get Started Free
                   <ArrowRight className="h-4 w-4" />
-                </a>
+                </Link>
               </Button>
             </div>
           </div>
@@ -109,10 +110,10 @@ export default function Landing() {
               Join thousands of users who have transformed their productivity.
             </p>
             <Button size="lg" asChild className="gap-2" data-testid="button-cta-bottom">
-              <a href="/api/login">
+              <Link href="/auth">
                 Start Now
                 <ArrowRight className="h-4 w-4" />
-              </a>
+              </Link>
             </Button>
           </div>
         </section>
