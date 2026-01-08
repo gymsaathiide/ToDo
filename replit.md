@@ -2,10 +2,10 @@
 
 ## Overview
 
-TaskFlow is a production-ready todo application built with a modern full-stack architecture. The application provides user authentication via Supabase Auth with email verification, user profiles with avatar upload, secure task management with Row Level Security, and a clean responsive UI.
+TaskFlow is a production-ready todo application built with a modern full-stack architecture. The application provides user authentication via Supabase Auth with email OTP verification, user profiles with avatar upload, secure task management with Row Level Security, and a clean responsive UI.
 
 **Core Features:**
-- User authentication with email verification (Supabase Auth)
+- User authentication with email OTP verification (Supabase Auth)
 - User profiles with avatar photo upload (Supabase Storage)
 - CRUD operations for todos (create, read, update, delete)
 - User-specific data isolation via RLS policies
@@ -36,7 +36,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Data Storage
 - **Database:** Supabase (PostgreSQL)
-- **Authentication:** Supabase Auth (email/password with verification)
+- **Authentication:** Supabase Auth (email/password with OTP verification)
 - **File Storage:** Supabase Storage (avatar images)
 - **Data Access:** Direct from frontend using Supabase client with RLS
 
@@ -49,10 +49,20 @@ Preferred communication style: Simple, everyday language.
    - `SUPABASE_URL` - Your project URL
    - `SUPABASE_ANON_KEY` - Your anon/public key
 
-### Step 2: Enable Email Auth
-1. Go to Authentication > Providers > Email
+### Step 2: Enable Email Auth with OTP
+1. Go to **Authentication > Providers > Email**
 2. Enable Email provider
-3. Optional: Disable "Confirm email" for testing (enable for production)
+3. **IMPORTANT: Enable "Confirm email"** - This enables email verification
+4. Go to **Authentication > Email Templates**
+5. For the "Confirm signup" template, ensure it includes the OTP token:
+   - The template should include `{{ .Token }}` which is the 6-digit OTP code
+   - Example template:
+   ```
+   <h2>Confirm your email</h2>
+   <p>Your verification code is: <strong>{{ .Token }}</strong></p>
+   <p>Enter this code in the app to verify your email.</p>
+   <p>Or click this link: <a href="{{ .ConfirmationURL }}">Verify Email</a></p>
+   ```
 
 ### Step 3: Run Database SQL
 Run this SQL in SQL Editor (supabase.com/dashboard > SQL Editor):
@@ -150,6 +160,15 @@ TO public
 USING (bucket_id = 'avatars');
 ```
 
+## Authentication Flow
+
+1. **Sign Up**: User enters email, password, and optional name
+2. **Email Verification**: Supabase sends a 6-digit OTP code to the user's email
+3. **Verify OTP**: User enters the code in the app to verify their account
+4. **Sign In**: After verification, user can sign in with email/password
+5. **Session**: Session persists across page refreshes
+6. **Sign Out**: Clears session and redirects to auth page
+
 ## API Endpoints
 - `GET /api/config` - Get Supabase configuration (URL and anon key)
 
@@ -160,7 +179,7 @@ USING (bucket_id = 'avatars');
 ## External Dependencies
 
 ### Supabase Services
-- **Supabase Auth:** Email/password authentication with verification
+- **Supabase Auth:** Email/password authentication with OTP verification
 - **Supabase Database:** PostgreSQL with RLS for secure data access
 - **Supabase Storage:** File storage for user avatars
 
@@ -173,3 +192,16 @@ USING (bucket_id = 'avatars');
 - **Lucide React:** Icon library
 - **class-variance-authority:** Component variant management
 - **tailwind-merge:** Tailwind class merging utility
+
+## Troubleshooting
+
+### OTP not working
+1. Make sure "Confirm email" is enabled in Authentication > Providers > Email
+2. Check your spam folder for the verification email
+3. The OTP code is valid for 1 hour
+4. You can resend the code using the "Resend verification code" button
+
+### No user data in Supabase
+1. Make sure you ran the SQL to create the `profiles` and `todos` tables
+2. Check that RLS policies are enabled and correct
+3. Verify your Supabase URL and anon key are correctly set in Replit secrets

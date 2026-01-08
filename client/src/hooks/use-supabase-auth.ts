@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getSupabase } from '@/lib/supabase';
-import type { User, Session, SupabaseClient } from '@supabase/supabase-js';
+import type { User, Session, SupabaseClient, EmailOtpType } from '@supabase/supabase-js';
 
 export function useSupabaseAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -86,6 +86,29 @@ export function useSupabaseAuth() {
     return { error };
   };
 
+  const verifyOtp = async (email: string, token: string, type: EmailOtpType = 'signup') => {
+    if (!supabase) {
+      return { data: null, error: new Error('Supabase not initialized') };
+    }
+    const { data, error } = await supabase.auth.verifyOtp({
+      email,
+      token,
+      type,
+    });
+    return { data, error };
+  };
+
+  const resendVerificationEmail = async (email: string) => {
+    if (!supabase) {
+      return { data: null, error: new Error('Supabase not initialized') };
+    }
+    const { data, error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+    });
+    return { data, error };
+  };
+
   return {
     user,
     session,
@@ -94,5 +117,7 @@ export function useSupabaseAuth() {
     signUp,
     signIn,
     signOut,
+    verifyOtp,
+    resendVerificationEmail,
   };
 }

@@ -1,0 +1,64 @@
+You are building a production-ready TODO application on Replit.
+
+DATABASE & AUTH REQUIREMENTS (Supabase):
+
+1. Authentication (Supabase Auth):
+   - Use Supabase Authentication for user management.
+   - Store user credentials securely using Supabase Auth (email + password).
+   - Do NOT store passwords manually in the database.
+   - Enable email OTP / email verification during signup.
+   - Users must verify their email before their account becomes active.
+   - Support login, logout, and session persistence.
+
+2. User Profile:
+   - Create a user profile system linked to Supabase Auth.
+   - Allow users to upload and update a profile photo.
+   - Store profile images using Supabase Storage (not in the database).
+   - Save the public image URL in a `profiles` table.
+   - Profile data should include:
+     - user_id (uuid, references auth.users.id)
+     - full_name (optional)
+     - avatar_url (text)
+     - created_at (timestamp)
+
+3. User Account Flow:
+   - Signup → Email OTP verification → Account activation
+   - Login allowed only after verification
+   - Logout clears session properly
+   - Session should persist on page refresh
+
+4. TODO Ownership & Data:
+   - Every authenticated user has a unique user_id from Supabase Auth.
+   - When a user creates a TODO task, store the user_id with the task.
+   - Tasks must always be associated with the logged-in user.
+
+5. Database Structure:
+   - `todos` table fields:
+     - id (uuid, primary key)
+     - user_id (uuid, references auth.users.id)
+     - title (text)
+     - is_completed (boolean, default false)
+     - created_at (timestamp)
+
+6. Security (Mandatory):
+   - Enable Row Level Security (RLS) on all user-related tables.
+   - Policies must ensure:
+     - Users can only read their own profile
+     - Users can only update their own profile photo
+     - Users can only access their own TODOs
+   - No cross-user data access is allowed.
+
+7. API & Data Flow:
+   - All API requests must validate the authenticated user session.
+   - Fetch TODOs and profile data based on the logged-in user.
+   - Database must clearly show which user created which task.
+
+8. Production Standards:
+   - Use environment variables for Supabase keys.
+   - Handle OTP, upload, and auth errors gracefully.
+   - Show loading and error states in UI.
+   - Write clean, scalable, and maintainable code.
+   - Follow best practices suitable for a real SaaS application.
+
+IMPORTANT:
+This application must behave like a real production TODO app with secure authentication, email verification, profile photo upload, and strict user-based data isolation.

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
-import { CheckSquare, Eye, EyeOff, ArrowLeft, Mail } from 'lucide-react';
+import { CheckSquare, Eye, EyeOff, ArrowLeft, Mail, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,12 +9,17 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useToast } from '@/hooks/use-toast';
 import { useSupabaseAuth } from '@/hooks/use-supabase-auth';
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
 
 type AuthMode = 'signin' | 'signup' | 'verify';
 
 export default function AuthPage() {
   const [, setLocation] = useLocation();
-  const { signIn, signUp, isAuthenticated } = useSupabaseAuth();
+  const { signIn, signUp, verifyOtp, resendVerificationEmail, isAuthenticated } = useSupabaseAuth();
   const { toast } = useToast();
   
   const [mode, setMode] = useState<AuthMode>('signin');
@@ -24,6 +29,8 @@ export default function AuthPage() {
   const [lastName, setLastName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [isResending, setIsResending] = useState(false);
 
   if (isAuthenticated) {
     setLocation('/');
@@ -46,10 +53,14 @@ export default function AuthPage() {
         } else if (data?.user && !data.session) {
           setMode('verify');
           toast({
-            title: 'Check your email',
-            description: 'We sent you a verification link to confirm your account.',
+            title: 'Verification code sent',
+            description: 'We sent a 6-digit code to your email. Enter it below to verify your account.',
           });
-        } else {
+        } else if (data?.session) {
+          toast({
+            title: 'Account created',
+            description: 'Welcome to TaskFlow!',
+          });
           setLocation('/');
         }
       } else {
@@ -57,7 +68,8 @@ export default function AuthPage() {
         if (error) {
           let message = error.message;
           if (error.message.includes('Email not confirmed')) {
-            message = 'Please verify your email before signing in. Check your inbox for the verification link.';
+            message = 'Please verify your email before signing in. Check your inbox for the verification code.';
+            setMode('verify');
           }
           toast({
             title: 'Sign in failed',
@@ -73,12 +85,72 @@ export default function AuthPage() {
     }
   };
 
+  const handleVerifyOtp = async () => {
+    if (otpCode.length !== 6) {
+      toast({
+        title: 'Invalid code',
+        description: 'Please enter the 6-digit code from your email.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { data, error } = await verifyOtp(email, otpCode, 'signup');
+      if (error) {
+        toast({
+          title: 'Verification failed',
+          description: error.message,
+          variant: 'destructive',
+        });
+      } else if (data?.session) {
+        toast({
+          title: 'Email verified',
+          description: 'Your account is now active. Welcome to TaskFlow!',
+        });
+        setLocation('/');
+      } else {
+        toast({
+          title: 'Email verified',
+          description: 'You can now sign in with your credentials.',
+        });
+        setMode('signin');
+        setOtpCode('');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    setIsResending(true);
+    try {
+      const { error } = await resendVerificationEmail(email);
+      if (error) {
+        toast({
+          title: 'Failed to resend',
+          description: error.message,
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Code resent',
+          description: 'Check your email for the new verification code.',
+        });
+      }
+    } finally {
+      setIsResending(false);
+    }
+  };
+
   const toggleMode = () => {
     setMode(mode === 'signin' ? 'signup' : 'signin');
     setEmail('');
     setPassword('');
     setFirstName('');
     setLastName('');
+    setOtpCode('');
   };
 
   if (mode === 'verify') {
@@ -104,27 +176,67 @@ export default function AuthPage() {
                 <Mail className="h-8 w-8 text-primary" />
               </div>
               <CardTitle className="text-2xl font-bold" data-testid="text-verify-title">
-                Check your email
+                Verify your email
               </CardTitle>
               <CardDescription data-testid="text-verify-description">
-                We sent a verification link to <strong>{email}</strong>
+                Enter the 6-digit code we sent to <strong>{email}</strong>
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
+              <div className="flex justify-center">
+                <InputOTP
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={(value) => setOtpCode(value)}
+                  data-testid="input-otp"
+                >
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                    <InputOTPSlot index={3} />
+                    <InputOTPSlot index={4} />
+                    <InputOTPSlot index={5} />
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
+
               <Alert>
                 <AlertDescription>
-                  Click the link in your email to verify your account, then come back here to sign in.
+                  Check your inbox and spam folder for the verification email. The code expires in 1 hour.
                 </AlertDescription>
               </Alert>
-              
+
               <Button 
                 className="w-full" 
-                variant="outline"
-                onClick={() => setMode('signin')}
-                data-testid="button-back-to-signin"
+                onClick={handleVerifyOtp}
+                disabled={isLoading || otpCode.length !== 6}
+                data-testid="button-verify-otp"
               >
-                Back to sign in
+                {isLoading ? 'Verifying...' : 'Verify Email'}
               </Button>
+              
+              <div className="flex flex-col gap-2">
+                <Button 
+                  variant="outline"
+                  className="w-full gap-2"
+                  onClick={handleResendCode}
+                  disabled={isResending}
+                  data-testid="button-resend-code"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isResending ? 'animate-spin' : ''}`} />
+                  {isResending ? 'Resending...' : 'Resend verification code'}
+                </Button>
+                
+                <Button 
+                  variant="ghost"
+                  className="w-full"
+                  onClick={() => setMode('signin')}
+                  data-testid="button-back-to-signin"
+                >
+                  Back to sign in
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </main>
