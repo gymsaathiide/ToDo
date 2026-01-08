@@ -52,7 +52,7 @@ export default function Dashboard() {
     data: todos = [],
     isLoading: todosLoading,
   } = useQuery<TodoDisplay[]>({
-    queryKey: ["todos"],
+    queryKey: ["todos", user?.id],
     queryFn: async () => {
       const client = await getSupabase();
       const { data, error } = await client
@@ -63,7 +63,7 @@ export default function Dashboard() {
       if (error) throw error;
       return (data || []).map(mapTodo);
     },
-    enabled: isAuthenticated && !!supabase,
+    enabled: isAuthenticated && !!supabase && !!user?.id,
   });
 
   const addMutation = useMutation({
@@ -76,7 +76,7 @@ export default function Dashboard() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["todos"] });
+      queryClient.invalidateQueries({ queryKey: ["todos", user?.id] });
     },
     onError: (error: Error) => {
       toast({
@@ -98,7 +98,7 @@ export default function Dashboard() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["todos"] });
+      queryClient.invalidateQueries({ queryKey: ["todos", user?.id] });
     },
     onError: (error: Error) => {
       toast({
@@ -127,7 +127,7 @@ export default function Dashboard() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["todos"] });
+      queryClient.invalidateQueries({ queryKey: ["todos", user?.id] });
     },
     onError: (error: Error) => {
       toast({
@@ -156,7 +156,7 @@ export default function Dashboard() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["todos"] });
+      queryClient.invalidateQueries({ queryKey: ["todos", user?.id] });
     },
     onError: (error: Error) => {
       toast({

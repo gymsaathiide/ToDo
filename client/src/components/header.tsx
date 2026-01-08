@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CheckSquare, LogOut, User, Settings } from "lucide-react";
+import { CheckSquare, LogOut, Settings, Camera, Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -7,6 +7,8 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
 import { useProfile } from "@/hooks/use-profile";
 import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,15 +17,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { AvatarUpload } from "@/components/avatar-upload";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 
 export function Header() {
   const { user, signOut } = useSupabaseAuth();
@@ -31,7 +30,7 @@ export function Header() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [showProfileDialog, setShowProfileDialog] = useState(false);
+  const [showProfileSheet, setShowProfileSheet] = useState(false);
   const [editName, setEditName] = useState('');
 
   const email = user?.email || '';
@@ -57,7 +56,28 @@ export function Header() {
     }
   };
 
-  const handleAvatarUpload = (file: File) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Invalid file type',
+        description: 'Please upload an image file.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: 'File too large',
+        description: 'Please upload an image smaller than 5MB.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     uploadAvatar(file, {
       onSuccess: () => {
         toast({
@@ -73,6 +93,7 @@ export function Header() {
         });
       },
     });
+    e.target.value = '';
   };
 
   const handleUpdateName = () => {
@@ -83,7 +104,7 @@ export function Header() {
             title: "Profile updated",
             description: "Your name has been updated.",
           });
-          setShowProfileDialog(false);
+          setShowProfileSheet(false);
         },
         onError: (error: Error) => {
           toast({
@@ -96,9 +117,9 @@ export function Header() {
     }
   };
 
-  const openProfileDialog = () => {
+  const openProfileSheet = () => {
     setEditName(profile?.full_name || '');
-    setShowProfileDialog(true);
+    setShowProfileSheet(true);
   };
 
   return (
@@ -176,7 +197,7 @@ export function Header() {
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    onClick={openProfileDialog}
+                    onClick={openProfileSheet}
                     className="cursor-pointer"
                     data-testid="button-edit-profile"
                   >
@@ -200,27 +221,52 @@ export function Header() {
         </div>
       </header>
 
-      <Dialog open={showProfileDialog} onOpenChange={setShowProfileDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit Profile</DialogTitle>
-            <DialogDescription>
+      <Sheet open={showProfileSheet} onOpenChange={setShowProfileSheet}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>Edit Profile</SheetTitle>
+            <SheetDescription>
               Update your profile photo and display name.
-            </DialogDescription>
-          </DialogHeader>
+            </SheetDescription>
+          </SheetHeader>
           
-          <div className="flex flex-col items-center gap-6 py-4">
-            <AvatarUpload
-              avatarUrl={avatarUrl}
-              fallback={initials}
-              onUpload={handleAvatarUpload}
-              isUploading={isUploadingAvatar}
-              size="lg"
-            />
+          <div className="flex flex-col items-center gap-6 py-6">
+            <div className="relative">
+              <Avatar className="h-24 w-24">
+                <AvatarImage src={avatarUrl || undefined} alt="Profile" />
+                <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-medium">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              
+              <input
+                type="file"
+                id="avatar-upload"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="hidden"
+                data-testid="input-avatar-file"
+              />
+              
+              <Button
+                size="icon"
+                variant="secondary"
+                className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full shadow-md"
+                onClick={() => document.getElementById('avatar-upload')?.click()}
+                disabled={isUploadingAvatar}
+                data-testid="button-upload-avatar"
+              >
+                {isUploadingAvatar ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Camera className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
             
-            <div className="w-full space-y-2">
-              <Label htmlFor="fullName">Display Name</Label>
-              <div className="flex gap-2">
+            <div className="w-full space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="fullName">Display Name</Label>
                 <Input
                   id="fullName"
                   value={editName}
@@ -228,18 +274,19 @@ export function Header() {
                   placeholder="Your name"
                   data-testid="input-display-name"
                 />
-                <Button 
-                  onClick={handleUpdateName}
-                  disabled={isUpdating || !editName.trim()}
-                  data-testid="button-save-name"
-                >
-                  {isUpdating ? "Saving..." : "Save"}
-                </Button>
               </div>
+              <Button 
+                className="w-full"
+                onClick={handleUpdateName}
+                disabled={isUpdating || !editName.trim()}
+                data-testid="button-save-name"
+              >
+                {isUpdating ? "Saving..." : "Save Changes"}
+              </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </>
   );
 }

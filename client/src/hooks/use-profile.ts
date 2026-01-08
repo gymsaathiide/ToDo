@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getSupabase } from '@/lib/supabase';
 import { useSupabaseAuth } from '@/hooks/use-supabase-auth';
@@ -13,8 +13,10 @@ export interface Profile {
 export function useProfile() {
   const { user, isAuthenticated } = useSupabaseAuth();
   const queryClient = useQueryClient();
+  const hasCreatedProfile = useRef(false);
+  const [isCreatingProfile, setIsCreatingProfile] = useState(false);
 
-  const { data: profile, isLoading, error } = useQuery<Profile | null>({
+  const { data: profile, isLoading, error, refetch } = useQuery<Profile | null>({
     queryKey: ['profile', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
@@ -24,37 +26,13 @@ export function useProfile() {
         .from('profiles')
         .select('*')
         .eq('id', user.id)
-        .single();
-      
-      if (error && error.code !== 'PGRST116') {
-        throw error;
-      }
-      
-      return data;
-    },
-    enabled: isAuthenticated && !!user?.id,
-  });
-
-  const createProfileMutation = useMutation({
-    mutationFn: async (profileData: { full_name?: string }) => {
-      if (!user?.id) throw new Error('Not authenticated');
-      
-      const supabase = await getSupabase();
-      const { data, error } = await supabase
-        .from('profiles')
-        .insert({
-          id: user.id,
-          full_name: profileData.full_name || null,
-        })
-        .select()
-        .single();
+        .maybeSingle();
       
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['profile', user?.id] });
-    },
+    enabled: isAuthenticated && !!user?.id && !isCreatingProfile,
+    staleTime: 30000,
   });
 
   const updateProfileMutation = useMutation({
@@ -109,34 +87,64 @@ export function useProfile() {
     },
   });
 
-  const ensureProfile = async () => {
-    if (!user?.id || profile) return;
+  const createProfile = useCallback(async () => {
+    if (!user?.id || hasCreatedProfile.current || isCreatingProfile) return;
     
-    const supabase = await getSupabase();
-    const { data: existingProfile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('id', user.id)
-      .single();
+    hasCreatedProfile.current = true;
+    setIsCreatingProfile(true);
     
-    if (!existingProfile) {
+    try {
+      const supabase = await getSupabase();
+      
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .maybeSingle();
+      
+      if (existingProfile) {
+        setIsCreatingProfile(false);
+        return;
+      }
+      
       const firstName = user.user_metadata?.first_name || '';
       const lastName = user.user_metadata?.last_name || '';
-      const fullName = `${firstName} ${lastName}`.trim() || undefined;
+      const fullName = `${firstName} ${lastName}`.trim() || null;
       
-      await createProfileMutation.mutateAsync({ full_name: fullName });
+      const { error } = await supabase
+        .from('profiles')
+        .insert({
+          id: user.id,
+          full_name: fullName,
+        });
+      
+      if (error && error.code !== '23505') {
+        console.error('Error creating profile:', error);
+      }
+      
+      await refetch();
+    } catch (err) {
+      console.error('Error in profile creation:', err);
+    } finally {
+      setIsCreatingProfile(false);
     }
-  };
+  }, [user?.id, refetch, isCreatingProfile]);
 
   useEffect(() => {
-    if (isAuthenticated && user?.id && !isLoading && !profile) {
-      ensureProfile();
+    if (isAuthenticated && user?.id && !isLoading && profile === null && !hasCreatedProfile.current) {
+      createProfile();
     }
-  }, [isAuthenticated, user?.id, isLoading, profile]);
+  }, [isAuthenticated, user?.id, isLoading, profile, createProfile]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      hasCreatedProfile.current = false;
+    }
+  }, [isAuthenticated]);
 
   return {
     profile,
-    isLoading,
+    isLoading: isLoading || isCreatingProfile,
     error,
     updateProfile: updateProfileMutation.mutate,
     uploadAvatar: uploadAvatarMutation.mutate,

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { getSupabase } from '@/lib/supabase';
 import type { User, Session, SupabaseClient } from '@supabase/supabase-js';
 
@@ -7,6 +8,7 @@ export function useSupabaseAuth() {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [supabase, setSupabase] = useState<SupabaseClient | null>(null);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     let unsubscribe: (() => void) | null = null;
@@ -21,10 +23,14 @@ export function useSupabaseAuth() {
       });
 
       const { data: { subscription } } = client.auth.onAuthStateChange(
-        (_event, session) => {
+        (event, session) => {
           setSession(session);
           setUser(session?.user ?? null);
           setIsLoading(false);
+          
+          if (event === 'SIGNED_OUT') {
+            queryClient.clear();
+          }
         }
       );
 
@@ -39,7 +45,7 @@ export function useSupabaseAuth() {
         unsubscribe();
       }
     };
-  }, []);
+  }, [queryClient]);
 
   const signUp = async (email: string, password: string, firstName?: string, lastName?: string) => {
     if (!supabase) {
@@ -74,6 +80,9 @@ export function useSupabaseAuth() {
       return { error: new Error('Supabase not initialized') };
     }
     const { error } = await supabase.auth.signOut();
+    if (!error) {
+      queryClient.clear();
+    }
     return { error };
   };
 
