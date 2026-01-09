@@ -2,8 +2,9 @@ import { Request, Response, NextFunction } from "express";
 import { createClient } from "@supabase/supabase-js";
 
 // Hardcoded fallback for production reliability if env vars are missing
-const supabaseUrl = process.env.SUPABASE_URL || "https://nmciqbtisianjdzgcczr.supabase.co";
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5tY2lxYnRpc2lhbmpkemdjY3pyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc4NzczNzcsImV4cCI6MjA4MzQ1MzM3N30.mR_W8h6B-T-TIZo5LFs5PJO2Wu66Ojt7G5IGgeglhdc";
+// Hardcoded fallback for production reliability if env vars are missing
+export const supabaseUrl = process.env.SUPABASE_URL || "https://nmciqbtisianjdzgcczr.supabase.co";
+export const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5tY2lxYnRpc2lhbmpkemdjY3pyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc4NzczNzcsImV4cCI6MjA4MzQ1MzM3N30.mR_W8h6B-T-TIZo5LFs5PJO2Wu66Ojt7G5IGgeglhdc";
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error("Missing Supabase configuration");

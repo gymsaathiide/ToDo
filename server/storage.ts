@@ -1,17 +1,28 @@
 import { type Todo, type InsertTodo, type UpdateTodo } from "@shared/schema";
-import { supabase } from "./middleware";
+import { supabaseUrl, supabaseAnonKey } from "./middleware";
+import { createClient } from "@supabase/supabase-js";
 
 export interface IStorage {
-  getTodosByUserId(userId: string): Promise<Todo[]>;
-  getTodoById(id: string, userId: string): Promise<Todo | undefined>;
-  createTodo(userId: string, todo: InsertTodo): Promise<Todo>;
-  updateTodo(id: string, userId: string, updates: UpdateTodo): Promise<Todo | undefined>;
-  deleteTodo(id: string, userId: string): Promise<boolean>;
+  getTodosByUserId(userId: string, token: string): Promise<Todo[]>;
+  getTodoById(id: string, userId: string, token: string): Promise<Todo | undefined>;
+  createTodo(userId: string, todo: InsertTodo, token: string): Promise<Todo>;
+  updateTodo(id: string, userId: string, updates: UpdateTodo, token: string): Promise<Todo | undefined>;
+  deleteTodo(id: string, userId: string, token: string): Promise<boolean>;
 }
 
 export class SupabaseStorage implements IStorage {
-  async getTodosByUserId(userId: string): Promise<Todo[]> {
-    const { data, error } = await supabase
+  private getClient(token: string) {
+    return createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    });
+  }
+
+  async getTodosByUserId(userId: string, token: string): Promise<Todo[]> {
+    const { data, error } = await this.getClient(token)
       .from("todos")
       .select("*")
       .eq("user_id", userId)
@@ -23,8 +34,8 @@ export class SupabaseStorage implements IStorage {
     return (data || []).map(this.mapTodo);
   }
 
-  async getTodoById(id: string, userId: string): Promise<Todo | undefined> {
-    const { data, error } = await supabase
+  async getTodoById(id: string, userId: string, token: string): Promise<Todo | undefined> {
+    const { data, error } = await this.getClient(token)
       .from("todos")
       .select("*")
       .eq("id", id)
@@ -35,8 +46,8 @@ export class SupabaseStorage implements IStorage {
     return this.mapTodo(data);
   }
 
-  async createTodo(userId: string, todo: InsertTodo): Promise<Todo> {
-    const { data, error } = await supabase
+  async createTodo(userId: string, todo: InsertTodo, token: string): Promise<Todo> {
+    const { data, error } = await this.getClient(token)
       .from("todos")
       .insert({
         title: todo.title,
@@ -50,12 +61,12 @@ export class SupabaseStorage implements IStorage {
     return this.mapTodo(data);
   }
 
-  async updateTodo(id: string, userId: string, updates: UpdateTodo): Promise<Todo | undefined> {
+  async updateTodo(id: string, userId: string, updates: UpdateTodo, token: string): Promise<Todo | undefined> {
     const updateData: any = {};
     if (updates.title !== undefined) updateData.title = updates.title;
     if (updates.isCompleted !== undefined) updateData.is_completed = updates.isCompleted;
 
-    const { data, error } = await supabase
+    const { data, error } = await this.getClient(token)
       .from("todos")
       .update(updateData)
       .eq("id", id)
@@ -67,8 +78,8 @@ export class SupabaseStorage implements IStorage {
     return this.mapTodo(data);
   }
 
-  async deleteTodo(id: string, userId: string): Promise<boolean> {
-    const { error } = await supabase
+  async deleteTodo(id: string, userId: string, token: string): Promise<boolean> {
+    const { error } = await this.getClient(token)
       .from("todos")
       .delete()
       .eq("id", id)
