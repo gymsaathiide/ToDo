@@ -5,19 +5,10 @@ import { TodoInput } from "@/components/todo-input";
 import { TodoList } from "@/components/todo-list";
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
 import { useToast } from "@/hooks/use-toast";
-import { getSupabase } from "@/lib/supabase";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { apiRequest } from "@/lib/api";
 
 interface Todo {
-  id: string;
-  user_id: string;
-  title: string;
-  is_completed: boolean;
-  created_at: string;
-}
-
-interface TodoDisplay {
   id: string;
   userId: string;
   title: string;
@@ -25,15 +16,6 @@ interface TodoDisplay {
   createdAt: string;
 }
 
-function mapTodo(todo: Todo): TodoDisplay {
-  return {
-    id: todo.id,
-    userId: todo.user_id,
-    title: todo.title,
-    isCompleted: todo.is_completed,
-    createdAt: todo.created_at,
-  };
-}
 
 export default function Dashboard() {
   const { user, isLoading: authLoading, isAuthenticated } = useSupabaseAuth();
@@ -42,41 +24,25 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set());
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
-  const [supabase, setSupabase] = useState<SupabaseClient | null>(null);
-
-  useEffect(() => {
-    getSupabase().then(setSupabase);
-  }, []);
 
   const {
     data: todos = [],
     isLoading: todosLoading,
-  } = useQuery<TodoDisplay[]>({
-    queryKey: ["todos", user?.id],
+  } = useQuery<Todo[]>({
+    queryKey: ["todos"],
     queryFn: async () => {
-      const client = await getSupabase();
-      const { data, error } = await client
-        .from("todos")
-        .select("*")
-        .order("created_at", { ascending: false });
-      
-      if (error) throw error;
-      return (data || []).map(mapTodo);
+      // This will use apiRequest which now points to the remote server
+      return apiRequest("GET", "/api/todos");
     },
-    enabled: isAuthenticated && !!supabase && !!user?.id,
+    enabled: isAuthenticated,
   });
 
   const addMutation = useMutation({
     mutationFn: async (title: string) => {
-      const client = await getSupabase();
-      const { error } = await client.from("todos").insert({
-        title,
-        user_id: user?.id,
-      });
-      if (error) throw error;
+      await apiRequest("POST", "/api/todos", { title });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["todos", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["todos"] });
     },
     onError: (error: Error) => {
       toast({
@@ -90,15 +56,10 @@ export default function Dashboard() {
   const toggleMutation = useMutation({
     mutationFn: async ({ id, isCompleted }: { id: string; isCompleted: boolean }) => {
       setUpdatingIds((prev) => new Set(prev).add(id));
-      const client = await getSupabase();
-      const { error } = await client
-        .from("todos")
-        .update({ is_completed: isCompleted })
-        .eq("id", id);
-      if (error) throw error;
+      await apiRequest("PATCH", `/api/todos/${id}`, { isCompleted });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["todos", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["todos"] });
     },
     onError: (error: Error) => {
       toast({
@@ -119,15 +80,10 @@ export default function Dashboard() {
   const updateMutation = useMutation({
     mutationFn: async ({ id, title }: { id: string; title: string }) => {
       setUpdatingIds((prev) => new Set(prev).add(id));
-      const client = await getSupabase();
-      const { error } = await client
-        .from("todos")
-        .update({ title })
-        .eq("id", id);
-      if (error) throw error;
+      await apiRequest("PATCH", `/api/todos/${id}`, { title });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["todos", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["todos"] });
     },
     onError: (error: Error) => {
       toast({
@@ -148,15 +104,10 @@ export default function Dashboard() {
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       setDeletingIds((prev) => new Set(prev).add(id));
-      const client = await getSupabase();
-      const { error } = await client
-        .from("todos")
-        .delete()
-        .eq("id", id);
-      if (error) throw error;
+      await apiRequest("DELETE", `/api/todos/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["todos", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["todos"] });
     },
     onError: (error: Error) => {
       toast({

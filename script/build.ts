@@ -30,6 +30,7 @@ const allowlist = [
   "xlsx",
   "zod",
   "zod-validation-error",
+  "@supabase/supabase-js",
 ];
 
 async function buildAll() {
