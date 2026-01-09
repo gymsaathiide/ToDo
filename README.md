@@ -1,97 +1,104 @@
-# TaskFlow - Modern Todo Application
+# 📝 ToDo App
 
-A production-ready todo application built with React, TypeScript, and Supabase.
+> A robust, full-stack Task Management application built with **React**, **Express**, and **Supabase**, engineered for seamless Android deployment via **Capacitor**.
 
-## Features
+![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
+![React](https://img.shields.io/badge/React-20232A?style=flat&logo=react&logoColor=61DAFB)
+![Express.js](https://img.shields.io/badge/Express.js-000000?style=flat&logo=express&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-181818?style=flat&logo=supabase&logoColor=3ECF8E)
+![Android](https://img.shields.io/badge/Android-3DDC84?style=flat&logo=android&logoColor=white)
 
-- User authentication with email OTP verification
-- User profiles with avatar upload
-- Create, read, update, and delete todos
-- User-specific data isolation with Row Level Security
-- Dark/light theme support
-- Responsive design
+---
 
-## Tech Stack
+## ✨ Features
 
-- **Frontend:** React 18, TypeScript, Vite, Tailwind CSS, shadcn/ui
-- **Backend:** Express.js (minimal - serves config only)
-- **Database:** Supabase (PostgreSQL with RLS)
-- **Authentication:** Supabase Auth (email/password with OTP)
-- **Storage:** Supabase Storage (avatar images)
+*   **🔒 Secure Authentication**: Robust sign-up and sign-in flows powered by Supabase Auth (JWT).
+*   **✅ Task Management**: effortlessly Create, Read, Update, and Delete your daily tasks.
+*   **🔄 Real-time Sync**: Your data is legally synchronized with a managed PostgreSQL database.
+*   **📱 Native Android Support**: Packaged as a standalone APK using Capacitor for near-native performance.
+*   **🛡️ Secure API**: Custom Express backend with middleware middleware for authenticated requests.
 
-## Getting Started
+## 🛠️ Technology Stack
+
+| Frontend | Backend | Database & Auth | Mobile |
+| :--- | :--- | :--- | :--- |
+| ![React](https://img.shields.io/badge/-React-black?logo=react) **React** | ![Node](https://img.shields.io/badge/-Node.js-green?logo=node.js) **Node.js** | ![Supabase](https://img.shields.io/badge/-Supabase-3ECF8E?logo=supabase) **Supabase** | ![Capacitor](https://img.shields.io/badge/-Capacitor-1199EE?logo=capacitor) **Capacitor** |
+| ![TypeScript](https://img.shields.io/badge/-TypeScript-blue?logo=typescript) **TypeScript** | ![Express](https://img.shields.io/badge/-Express-black?logo=express) **Express** | ![PostgreSQL](https://img.shields.io/badge/-PostgreSQL-336791?logo=postgresql) **PostgreSQL** | ![Android](https://img.shields.io/badge/-Android-3DDC84?logo=android) **Android** |
+| ![Tailwind](https://img.shields.io/badge/-Tailwind-38B2AC?logo=tailwindcss) **Tailwind CSS** | | | |
+
+## 🚀 Getting Started
+
+Follow these steps to set up the project locally.
 
 ### Prerequisites
 
-1. Create a Supabase project at https://supabase.com
-2. Get your project URL and anon key from Settings > API
-
-### Environment Variables
-
-Add these to your environment:
-
-```
-SUPABASE_URL=your_supabase_project_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
-```
-
-### Supabase Setup
-
-1. Enable Email provider in Authentication > Providers
-2. Enable "Confirm email" for OTP verification
-3. Run the SQL in Supabase SQL Editor to create tables and RLS policies (see setup instructions below)
-4. Create an `avatars` storage bucket with public read access
-
-### Database Setup
-
-Run this SQL in your Supabase SQL Editor:
-
-```sql
--- Profiles table
-CREATE TABLE profiles (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  full_name TEXT,
-  avatar_url TEXT,
-  created_at TIMESTAMPTZ DEFAULT now() NOT NULL
-);
-
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can view own profile" ON profiles FOR SELECT USING (auth.uid() = id);
-CREATE POLICY "Users can insert own profile" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
-CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
-
--- Todos table
-CREATE TABLE todos (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  title TEXT NOT NULL,
-  is_completed BOOLEAN DEFAULT false NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now() NOT NULL
-);
-
-ALTER TABLE todos ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can view own todos" ON todos FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own todos" ON todos FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own todos" ON todos FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete own todos" ON todos FOR DELETE USING (auth.uid() = user_id);
-```
+*   Node.js (v18+)
+*   npm
+*   Android Studio (for mobile build)
 
 ### Installation
 
+1.  **Clone the repository**
+    ```bash
+    git clone https://github.com/Rahulsh97297/ToDo.git
+    cd ToDo
+    ```
+
+2.  **Install Dependencies**
+    ```bash
+    npm install
+    ```
+
+3.  **Configure Environment**
+    Create a `.env` file in the root directory:
+    ```env
+    VITE_SUPABASE_URL=your_supabase_url
+    VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+    SUPABASE_URL=your_supabase_url
+    SUPABASE_ANON_KEY=your_supabase_anon_key
+    SESSION_SECRET=your_complex_session_secret
+    ```
+
+4.  **Run Development Server**
+    ```bash
+    npm run dev
+    ```
+
+## 📱 Building for Android (APK)
+
+1.  **Build Web Assets**
+    ```bash
+    npm run build
+    ```
+
+2.  **Sync with Capacitor**
+    ```bash
+    npx cap sync
+    ```
+
+3.  **Open in Android Studio**
+    ```bash
+    npx cap open android
+    ```
+    *Inside Android Studio:* Go to **Build** > **Build Bundle(s) / APK(s)** > **Build APK(s)**.
+
+## 📂 Project Structure
+
 ```bash
-npm install
-npm run dev
+/
+├── client/             # 🎨 React Frontend
+│   ├── src/
+│   │   ├── components/ # UI Components (ShadCN)
+│   │   ├── pages/      # Route Pages
+│   │   └── lib/        # API & Utils
+├── server/             # ⚙️ Express Backend
+│   ├── routes.ts       # API Endpoints
+│   └── middleware.ts   # Auth Middleware
+├── android/            # 🤖 Native Android Project
+└── shared/             # 📦 Shared Types & Schema
 ```
 
-## Usage
+---
 
-1. Sign up with your email and password
-2. Enter the 8-digit verification code sent to your email
-3. Start creating and managing your todos
-4. Upload a profile avatar in the header menu
-
-## License
-
-MIT
+Made with ❤️ by Rahul

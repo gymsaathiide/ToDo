@@ -2,9 +2,14 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import cors from "cors";
 
 const app = express();
 const httpServer = createServer(app);
+
+// Enable CORS for all origins, allowing credentials
+app.use(cors());
+app.options('*', cors()); // Enable pre-flight for all routes
 
 declare module "http" {
   interface IncomingMessage {
@@ -60,7 +65,23 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  await registerRoutes(httpServer, app);
+  // Health check endpoint (dep-free)
+  app.get("/api/health", (_req, res) => res.json({ status: "ok", timestamp: new Date().toISOString() }));
+
+  try {
+    await registerRoutes(httpServer, app);
+  } catch (error) {
+    console.error("Failed to register routes:", error);
+    // Don't crash, let static files and health check serve
+  }
+
+  // Fallback for API routes if they failed to load or don't exist
+  app.all("/api/*", (_req, res) => {
+    res.status(503).json({
+      message: "Service Unavailable: Backend failed to initialize. Please check server logs.",
+      error: "Routes not registered. Likely missing DATABASE_URL."
+    });
+  });
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
