@@ -36,13 +36,20 @@ export async function apiRequest(
     });
 
     if (!res.ok) {
-        // try to parse error message
         let errorMessage = "API request failed";
         try {
-            const errorData = await res.json();
+            const clone = res.clone(); // Clone to allow double reading if json fails
+            const errorData = await clone.json();
+            console.error("API Error Response:", errorData); // Log it for debugging
             errorMessage = errorData.message || errorMessage;
-        } catch {
-            // ignore
+            if (errorData.error) {
+                errorMessage += `: ${errorData.error}`;
+            }
+        } catch (e) {
+            console.error("Failed to parse API error JSON:", e);
+            const text = await res.text();
+            console.error("API Error Text:", text);
+            errorMessage += ` (Status ${res.status})`;
         }
         throw new Error(errorMessage);
     }
