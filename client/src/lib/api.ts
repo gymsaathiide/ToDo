@@ -38,7 +38,8 @@ export async function apiRequest(
     if (!res.ok) {
         let errorMessage = "API request failed";
         try {
-            const errorData = await res.json();
+            const clone = res.clone(); // Clone to allow double reading if json fails
+            const errorData = await clone.json();
             console.error("API Error Response:", errorData); // Log it for debugging
             errorMessage = errorData.message || errorMessage;
             if (errorData.error) {
