@@ -7,7 +7,7 @@ export async function registerRoutes(
 ): Promise<Server> {
   const { isAuthenticated } = await import("./middleware");
   const { storage } = await import("./storage");
-  const { insertTodoSchema, updateTodoSchema } = await import("@shared/schema");
+  const { insertTodoSchema, updateTodoSchema } = await import("../shared/schema");
   const { fromZodError } = await import("zod-validation-error");
 
   // Keep the config route public

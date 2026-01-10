@@ -1,4 +1,4 @@
-import { type Todo, type InsertTodo, type UpdateTodo } from "@shared/schema";
+import { type Todo, type InsertTodo, type UpdateTodo } from "../shared/schema";
 import { supabaseUrl, supabaseAnonKey } from "./middleware";
 import { createClient } from "@supabase/supabase-js";
 
