@@ -66,7 +66,7 @@ app.use((req, res, next) => {
 
 (async () => {
   // Health check endpoint (dep-free)
-  app.get("/api/health", (_req, res) => res.json({ status: "ok", timestamp: new Date().toISOString() }));
+  app.get("/api/health", (_req, res) => res.json({ status: "ok-v2", timestamp: new Date().toISOString() }));
 
   let startupError: any = null;
 
@@ -81,7 +81,7 @@ app.use((req, res, next) => {
   // Fallback for API routes if they failed to load or don't exist
   app.all("/api/*", (_req, res) => {
     res.status(503).json({
-      message: "Service Unavailable: Backend failed to initialize. Please check server logs.",
+      message: "CRITICAL_FAILURE: Backend failed to initialize.",
       error: startupError ? (startupError.message || String(startupError)) : "Routes not registered. Likely missing dependencies or configuration."
     });
   });
