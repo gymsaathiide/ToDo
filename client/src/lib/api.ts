@@ -49,7 +49,8 @@ export async function apiRequest(
             console.error("Failed to parse API error JSON:", e);
             const text = await res.text();
             console.error("API Error Text:", text);
-            errorMessage += ` (Status ${res.status})`;
+            // Append first 100 chars of text to see if it is HTML or what
+            errorMessage += ` (Status ${res.status}): ${text.substring(0, 100)}`;
         }
         throw new Error(errorMessage);
     }
